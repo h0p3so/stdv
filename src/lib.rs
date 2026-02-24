@@ -5,7 +5,9 @@ use std;
 pub enum Error {
     InvalidShortname,
     DuplicatedShortname,
-    DuplicatedLongname
+    DuplicatedLongname,
+
+    UnknownShortname
 }
 
 pub enum FValue {
@@ -39,6 +41,8 @@ pub struct Flag {
     pub seen: bool,
     pub value: Option<FValue>,
     pub extype: Option<FExpectedType>,
+
+    position: usize
 }
 
 impl Flag {
@@ -49,21 +53,53 @@ impl Flag {
             seen: false,
             value: None,
             extype: None,
-            mode: FArgMode::NoArgument
+            mode: FArgMode::NoArgument,
+            position: 0
         }
     }
 }
 
-pub fn grs_parse (args: Vec<String>, flags: &mut [Flag]) -> Result<(), Error> {
+pub fn grs_parse (args: Vec<String>, flags: &mut [Flag]) -> Result<Vec<String>, Error> {
     check_flags(flags) ?;
 
-    Ok(())
+    let mut positionalargs: Vec<String> = Vec::new();
+    let mut is_pos_arg: bool = false;
+    let mut lastflag_index: usize = 0;
+
+    for arg in args {
+        if is_pos_arg {
+            positionalargs.push(arg);
+            continue;
+        }
+
+        let first_ch: char  = arg.chars().nth(0).unwrap_or('\0');
+        let second_ch: char = arg.chars().nth(1).unwrap_or('\0');
+        let length: usize   = arg.len();
+
+        if first_ch == '-' && second_ch.is_ascii_alphanumeric() && length >= 2 {
+            lastflag_index = parse_shortopt(&arg, flags) ?;
+        }
+    }
+
+    Ok(positionalargs)
+}
+
+fn parse_shortopt (source: &String, flags: &mut [Flag]) -> Result<usize, Error> {
+    let mut flagpos: usize = 0;
+    for shortname in source.chars() {
+        let flag = flags.iter_mut().find(|f| f.shortname == shortname);
+        if flag.is_none() {
+            return Err(Error::UnknownShortname)
+        }
+    }
+
+    Ok(flagpos)
 }
 
 fn check_flags (flags: &mut [Flag]) -> Result<(), Error> {
     let mut mapper: HashMap<char, bool> = HashMap::new();
 
-    for flag in flags.iter_mut() {
+    for (i, flag) in flags.iter_mut().enumerate() {
         if !flag.shortname.is_ascii_alphanumeric() {
             return Err(Error::InvalidShortname)
         }
@@ -71,6 +107,7 @@ fn check_flags (flags: &mut [Flag]) -> Result<(), Error> {
             return Err(Error::DuplicatedShortname)
         }
 
+        flag.position = i;
         mapper.insert(flag.shortname, true);
     }
 
@@ -91,17 +128,13 @@ fn check_flags (flags: &mut [Flag]) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn it_works () {
-        let args: Vec<String> = vec!["-v".to_string()];
+        let args: Vec<String> = vec!["-g".to_string()];
         let mut flags: [Flag; 2] = [
             Flag {
                 shortname: 'v',
@@ -117,7 +150,7 @@ mod tests {
             }
         ];
 
-        println!("{:?}", grs_parse(args, &mut flags));
+        println!("Error code: {:?}", grs_parse(args, &mut flags));
         assert_eq!(1, 1);
     }
 }
