@@ -7,7 +7,8 @@ pub enum Error {
     DuplicatedShortname,
     DuplicatedLongname,
 
-    UnknownShortname
+    UnknownShortname,
+    UnknownLongname
 }
 
 pub enum FValue {
@@ -79,17 +80,50 @@ pub fn grs_parse (args: Vec<String>, flags: &mut [Flag]) -> Result<Vec<String>, 
         if first_ch == '-' && second_ch.is_ascii_alphanumeric() && length >= 2 {
             lastflag_index = parse_shortopt(&arg, flags) ?;
         }
+        else if arg.starts_with("--") && length >= 3 {
+            lastflag_index = parse_longopt(&arg, flags) ?;
+
+        }
     }
 
     Ok(positionalargs)
 }
 
+fn parse_longopt (source: &String, flags: &mut [Flag]) -> Result<usize, Error> {
+    let mut flagpos: usize = 0;
+    let mut name: String = String::new();
+    let mut argument: Option<String> = None;
+
+    match source.find('=') {
+        Some(index) => {
+            name = source[2..index].to_string();
+            argument = Some(source[index..].to_string());
+        },
+        None => {
+            name = source[2..].to_string();
+        }
+    };
+
+    match flags.iter_mut().find(|f| !f.longname.is_none() && f.longname.unwrap() == name) {
+        Some(f) => {
+            f.seen = true;
+            flagpos = f.position;
+        },
+        None => return Err(Error::UnknownLongname)
+    }
+
+    Ok(flagpos)
+}
+
 fn parse_shortopt (source: &String, flags: &mut [Flag]) -> Result<usize, Error> {
     let mut flagpos: usize = 0;
-    for shortname in source.chars() {
-        let flag = flags.iter_mut().find(|f| f.shortname == shortname);
-        if flag.is_none() {
-            return Err(Error::UnknownShortname)
+    for shortname in source.chars().skip(1) {
+        match flags.iter_mut().find(|f| f.shortname == shortname) {
+            Some(f) => {
+                f.seen = true;
+                flagpos = f.position;
+            },
+            None => return Err(Error::UnknownShortname)
         }
     }
 
@@ -134,7 +168,7 @@ mod tests {
 
     #[test]
     fn it_works () {
-        let args: Vec<String> = vec!["-g".to_string()];
+        let args: Vec<String> = vec!["--verbose".to_string()];
         let mut flags: [Flag; 2] = [
             Flag {
                 shortname: 'v',
