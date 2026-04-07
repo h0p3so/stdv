@@ -1,5 +1,5 @@
 
-    [ ] parse shortflags
+    [x] parse shortflags
     [ ] parse longflags
     [ ] parse arguments
     [ ] parse --flag=argument
