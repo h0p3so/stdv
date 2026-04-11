@@ -10,6 +10,7 @@ pub enum Error {
     ShouldExpectedAValue(usize),
 
     UnknownShortname(String, usize),
+    UnknownLongname(String, usize, usize),
     BadGrouping(String, usize)
 }
 
@@ -119,9 +120,9 @@ fn parse_shortopt (source: &String, flags: &mut [Flag]) -> Result<Option<usize>,
     let srcoffset: usize = 1;
     for (i, shortname) in source.chars().skip(1).enumerate() {
         match flags.iter().position(|f| f.shortname == Some(shortname)) {
-            Some(index) => {
-                lastseen = Some(index);
-                let flag: &mut Flag = &mut flags[index];
+            Some(idx) => {
+                lastseen = Some(idx);
+                let flag: &mut Flag = &mut flags[idx];
 
                 /* +1 since we're trying to know if there are more characters (shortnames) to
                  * be parsed.
@@ -143,6 +144,40 @@ fn parse_shortopt (source: &String, flags: &mut [Flag]) -> Result<Option<usize>,
     Ok(lastseen)
 }
 
+fn parse_longopt (source: &String, flags: &mut [Flag]) -> Result<Option<usize>, Error> {
+    let lastseen: Option<usize>;
+    let givename: String;
+    let mut argument: Option<String> = None;
+
+    let flagnameoffset: usize = 2;
+    match source.find('=') {
+        Some(idx) => {
+            givename = source[flagnameoffset..idx].to_string();
+            argument = Some(source[idx..].to_string());
+        }
+        None => {
+            givename = source[flagnameoffset..].to_string();
+        }
+    }
+
+    match flags.iter().position(|f| f.longname == Some(&givename)) {
+        Some(idx) => {
+            lastseen = Some(idx);
+            let flag: &mut Flag = &mut flags[idx];
+
+            if let Some(_arg) = argument {
+                todo!();
+            }
+            flag.seen = true;
+        }
+        None => {
+            return Err(Error::UnknownLongname(source.clone(), flagnameoffset, givename.len()))
+        }
+    }
+
+    Ok(lastseen)
+}
+
 pub fn argrs (args: Vec<String>, flags: &mut [Flag]) -> Result<Argrs, Error> {
     check_integrity(flags) ?;
     let mut f_lasidx: Option<usize> = None;
@@ -157,7 +192,7 @@ pub fn argrs (args: Vec<String>, flags: &mut [Flag]) -> Result<Argrs, Error> {
                 f_lasidx = parse_shortopt(&arg, flags) ?;
             }
             (3.., Some('-'), Some('-')) => {
-                todo!();
+                f_lasidx = parse_longopt(&arg, flags) ?;
             }
             (2, Some('-'), Some('-')) => {
                 todo!();
