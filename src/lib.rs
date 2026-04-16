@@ -29,7 +29,10 @@ pub enum Error {
      * usize: index of the last flag seen
      */
     UnexpectedArgument(String, usize),
-    WrongTypeProvided(String, usize)
+    WrongTypeProvided(String, usize),
+    /* usize: flag's index whose argument wasn't provided
+     */
+    MissingArgument(usize)
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -66,12 +69,6 @@ pub struct Flag {
 
     pub seen: bool,
     pub mode: ArgMode,
-}
-
-#[derive(Debug)]
-pub struct Argrs {
-    pub positional: Option<Vec<String>>,
-    pub flastindex: Option<usize>, // XXX: may it is not needed (?)
 }
 
 impl Flag {
@@ -231,7 +228,25 @@ fn parse_argument (source: &String, flastindex: Option<usize>, flags: &mut [Flag
     Ok(())
 }
 
-pub fn argrs (args: Vec<String>, flags: &mut [Flag]) -> Result<Argrs, Error> {
+fn was_arg_set (flastindex: Option<usize>, flags: &[Flag]) -> Result<(), Error> {
+    if flastindex.is_none() {
+        return Ok(());
+    }
+
+    let i: usize = flastindex.unwrap();
+    let flag: &Flag = &flags[i];
+
+    if flag.mode == ArgMode::Optional {
+        return Ok(());
+    }
+    if flag.mode == ArgMode::NoArgument || flag.value.is_some() {
+        return Ok(());
+    }
+
+    Err(Error::MissingArgument(i))
+}
+
+pub fn argrs (args: Vec<String>, flags: &mut [Flag]) -> Result<Option<Vec<String>>, Error> {
     check_integrity(flags) ?;
 
     let mut flastindex: Option<usize> = None;
@@ -243,16 +258,15 @@ pub fn argrs (args: Vec<String>, flags: &mut [Flag]) -> Result<Argrs, Error> {
 
         match (length, char1, char2) {
             (2.., Some('-'), Some(ch2)) if ch2.is_ascii_alphanumeric() => {
+                was_arg_set(flastindex, &flags) ?;
                 flastindex = parse_shortopt(&arg, flags) ?;
             }
             (3.., Some('-'), Some('-')) => {
+                was_arg_set(flastindex, &flags) ?;
                 flastindex = parse_longopt(&arg, flags) ?;
             }
             (2, Some('-'), Some('-')) => {
-                return Ok( Argrs {
-                    positional: Some(args[(i + 2)..].iter().cloned().collect()),
-                    flastindex
-                });
+                return Ok( Some(args[(i + 2)..].iter().cloned().collect()) );
             }
             _ => {
                 parse_argument(&arg, flastindex, flags) ?;
@@ -260,10 +274,6 @@ pub fn argrs (args: Vec<String>, flags: &mut [Flag]) -> Result<Argrs, Error> {
         }
     }
 
-    // TODO: make sure the prev flag has its argument
-
-    Ok(Argrs {
-        positional: None,
-        flastindex,
-    })
+    was_arg_set(flastindex, &flags) ?;
+    Ok(None)
 }
