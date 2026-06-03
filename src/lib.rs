@@ -104,7 +104,7 @@ mod tests {
         let args: Vec<String> = vec!["-v".to_string()];
         let mut flags: [Flag; 2] = [
             Flag {
-                shortname: '&',
+                shortname: 'v',
                 longname: Some("verbose"),
                 ..Flag::default()
             },
