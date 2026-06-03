@@ -1,21 +1,27 @@
-#include "stdvec.h"
+#define STDV_IMPLEMENTATION
+#include "stdv.h"
 
 #include <stdio.h>
 
 int main () {
-	int *vec = NULL;
-	STDV_PUSH(vec, 43);
+	int *numbers = NULL;
+	int a = stdv_put(numbers, 5);
 
-	printf("value at 0: %d\n", vec[0]);
-	printf("len: %ld\n", STDV_LEN(vec));
-	printf("cap: %ld\n", STDV_CAP(vec));
+	printf("%d\n", numbers[0]);
+	printf("%ld\n", stdv_len_u64(numbers));
+	printf("%ld\n", stdv_cap_u64(numbers));
 
-	
-	/*printf("-----------------------------------------------\n");
-	STDVEC_PUSH(vec, 44);
-	printf("value at 1: %d\n", STDVEC_GET(vec, 1));
-	printf("len: %ld\n", STDVEC_LEN(vec));
-	printf("cap: %ld\n", STDVEC_CAP(vec));*/
+	puts("-*-");
+	stdv_put(numbers, 543);
+	printf("%d\n", numbers[1]);
+	printf("%ld\n", stdv_len_u64(numbers));
+	printf("%ld\n", stdv_cap_u64(numbers));
+
+	puts("-*-");
+	a = stdv_pop(numbers);
+	printf("poped: %d\n", a);
+	printf("%ld\n", stdv_len_u64(numbers));
+	printf("%ld\n", stdv_cap_u64(numbers));
 
 	return 0;
 }
