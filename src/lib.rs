@@ -6,13 +6,16 @@ pub enum Error {
     InvalidShortname,
     DuplicatedShortname,
     DuplicatedLongname,
+    MalformedFlag,
 
     UnknownShortname,
-    UnknownLongname
+    UnknownLongname,
+    NonsenseArgument,
+    WrongTypeProvided,
 }
 
 pub enum FValue {
-    Text(String),
+    Txt(String),
     F64(f64),
     I32(i32),
     U32(u32),
@@ -20,8 +23,20 @@ pub enum FValue {
     U64(u64)
 }
 
+impl FValue {
+    pub fn as_i32 (&self) -> Option<i32> {
+        if let FValue::I32(i) = *self {
+            Some(i)
+        }
+        else {
+            None
+        }
+    }
+}
+
+#[derive(PartialEq)]
 pub enum FExpectedType {
-    Text,
+    Txt,
     F64,
     I32,
     U32,
@@ -29,6 +44,7 @@ pub enum FExpectedType {
     U64
 }
 
+#[derive(PartialEq)]
 pub enum FArgMode {
     Required,
     Optional,
@@ -65,7 +81,7 @@ pub fn grs_parse (args: Vec<String>, flags: &mut [Flag]) -> Result<Vec<String>, 
 
     let mut positionalargs: Vec<String> = Vec::new();
     let mut is_pos_arg: bool = false;
-    let mut lastflag_index: usize = 0;
+    let mut lastflagindex: Option<usize> = None;
 
     for arg in args {
         if is_pos_arg {
@@ -78,19 +94,47 @@ pub fn grs_parse (args: Vec<String>, flags: &mut [Flag]) -> Result<Vec<String>, 
         let length: usize   = arg.len();
 
         if first_ch == '-' && second_ch.is_ascii_alphanumeric() && length >= 2 {
-            lastflag_index = parse_shortopt(&arg, flags) ?;
+            lastflagindex = parse_shortopt(&arg, flags) ?;
         }
         else if arg.starts_with("--") && length >= 3 {
-            lastflag_index = parse_longopt(&arg, flags) ?;
+            lastflagindex = parse_longopt(&arg, flags) ?;
+        }
+        else if arg == "--" {
+            is_pos_arg = true;
+        }
+        else {
+            if lastflagindex.is_none() {
+                return Err(Error::NonsenseArgument)
+            }
 
+            parse_flag_argument(&arg, &mut flags[lastflagindex.unwrap()]) ?;
+            lastflagindex = None;
         }
     }
 
     Ok(positionalargs)
 }
 
-fn parse_longopt (source: &String, flags: &mut [Flag]) -> Result<usize, Error> {
-    let mut flagpos: usize = 0;
+fn parse_flag_argument (source: &String, flag: &mut Flag) -> Result<(), Error> {
+    if flag.mode == FArgMode::NoArgument {
+        return Err(Error::NonsenseArgument);
+    }
+
+    match flag.extype.as_ref().unwrap() {
+        FExpectedType::Txt => flag.value = Some(FValue::Txt(source.to_string())),
+        FExpectedType::F64 => flag.value = Some(FValue::F64(source.parse::<f64>().map_err(|_| Error::WrongTypeProvided)?)),
+        FExpectedType::I32 => flag.value = Some(FValue::I32(source.parse::<i32>().map_err(|_| Error::WrongTypeProvided)?)),
+        FExpectedType::U32 => flag.value = Some(FValue::U32(source.parse::<u32>().map_err(|_| Error::WrongTypeProvided)?)),
+        FExpectedType::I64 => flag.value = Some(FValue::I64(source.parse::<i64>().map_err(|_| Error::WrongTypeProvided)?)),
+        FExpectedType::U64 => flag.value = Some(FValue::U64(source.parse::<u64>().map_err(|_| Error::WrongTypeProvided)?)),
+        _ => todo!(),
+    }
+
+    Ok(())
+}
+
+fn parse_longopt (source: &String, flags: &mut [Flag]) -> Result<Option<usize>, Error> {
+    let mut flagpos: Option<usize> = None;
     let mut name: String = String::new();
     let mut argument: Option<String> = None;
 
@@ -107,7 +151,7 @@ fn parse_longopt (source: &String, flags: &mut [Flag]) -> Result<usize, Error> {
     match flags.iter_mut().find(|f| !f.longname.is_none() && f.longname.unwrap() == name) {
         Some(f) => {
             f.seen = true;
-            flagpos = f.position;
+            flagpos = Some(f.position);
         },
         None => return Err(Error::UnknownLongname)
     }
@@ -115,13 +159,13 @@ fn parse_longopt (source: &String, flags: &mut [Flag]) -> Result<usize, Error> {
     Ok(flagpos)
 }
 
-fn parse_shortopt (source: &String, flags: &mut [Flag]) -> Result<usize, Error> {
-    let mut flagpos: usize = 0;
+fn parse_shortopt (source: &String, flags: &mut [Flag]) -> Result<Option<usize>, Error> {
+    let mut flagpos: Option<usize> = None;
     for shortname in source.chars().skip(1) {
         match flags.iter_mut().find(|f| f.shortname == shortname) {
             Some(f) => {
                 f.seen = true;
-                flagpos = f.position;
+                flagpos = Some(f.position);
             },
             None => return Err(Error::UnknownShortname)
         }
@@ -139,6 +183,10 @@ fn check_flags (flags: &mut [Flag]) -> Result<(), Error> {
         }
         if mapper.contains_key(&flag.shortname) {
             return Err(Error::DuplicatedShortname)
+        }
+
+        if flag.mode == FArgMode::NoArgument && !flag.extype.is_none() {
+            return Err(Error::MalformedFlag)
         }
 
         flag.position = i;
@@ -168,7 +216,7 @@ mod tests {
 
     #[test]
     fn it_works () {
-        let args: Vec<String> = vec!["--verbose".to_string()];
+        let args: Vec<String> = vec!["654".to_string(), "54".to_string()];
         let mut flags: [Flag; 2] = [
             Flag {
                 shortname: 'v',
@@ -179,7 +227,7 @@ mod tests {
                 shortname: 'f',
                 longname: Some("file"),
                 mode: FArgMode::Required,
-                extype: Some(FExpectedType::Text),
+                extype: Some(FExpectedType::I32),
                 ..Flag::default()
             }
         ];
