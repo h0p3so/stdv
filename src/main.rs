@@ -1,4 +1,0 @@
-mod grs;
-
-fn main () {
-}
