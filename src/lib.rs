@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 #[derive(Debug)]
 pub enum Error {
+    /* usize: represents the index of the flag at fault */
     DupShortname(usize),
     DupLongname(usize),
     AnonymousFlag(usize),
@@ -9,9 +10,26 @@ pub enum Error {
     ShouldntExpectedAValue(usize),
     ShouldExpectedAValue(usize),
 
+    /* String: argument provided
+     * usize: position of the shortopt at fault
+     */
     UnknownShortname(String, usize),
+    /* String: argument provided
+     * usize: name's offset (always 2 '--')
+     * usize: length of the flag name provided
+     */
     UnknownLongname(String, usize, usize),
-    BadGrouping(String, usize)
+    /* String: argument provided
+     * usize: position of the shortopt at fault
+     */
+    BadGrouping(String, usize),
+    /* String: argument provided */
+    PrematureArgument(String),
+    /* String: argument provided
+     * usize: index of the last flag seen
+     */
+    UnexpectedArgument(String, usize),
+    WrongTypeProvided(String, usize)
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -52,7 +70,8 @@ pub struct Flag {
 
 #[derive(Debug)]
 pub struct Argrs {
-    pub flastindex: Option<usize>,
+    pub positional: Option<Vec<String>>,
+    pub flastindex: Option<usize>, // XXX: may it is not needed (?)
 }
 
 impl Flag {
@@ -153,7 +172,7 @@ fn parse_longopt (source: &String, flags: &mut [Flag]) -> Result<Option<usize>, 
     match source.find('=') {
         Some(idx) => {
             givename = source[flagnameoffset..idx].to_string();
-            argument = Some(source[idx..].to_string());
+            argument = Some(source[(idx + 1)..].to_string());
         }
         None => {
             givename = source[flagnameoffset..].to_string();
@@ -163,42 +182,80 @@ fn parse_longopt (source: &String, flags: &mut [Flag]) -> Result<Option<usize>, 
     match flags.iter().position(|f| f.longname == Some(&givename)) {
         Some(idx) => {
             lastseen = Some(idx);
-            let flag: &mut Flag = &mut flags[idx];
-
-            if let Some(_arg) = argument {
-                todo!();
-            }
-            flag.seen = true;
+            flags[idx].seen = true;
         }
         None => {
             return Err(Error::UnknownLongname(source.clone(), flagnameoffset, givename.len()))
         }
     }
 
+    if let Some(arg) = argument {
+        parse_argument(&arg.clone(), lastseen, flags) ?;
+    }
     Ok(lastseen)
+}
+
+fn parse_argument (source: &String, flastindex: Option<usize>, flags: &mut [Flag]) -> Result<(), Error> {
+    if flastindex.is_none() {
+        return Err(Error::PrematureArgument(source.clone()));
+    }
+
+    let index: usize = flastindex.unwrap();
+    let flag: &mut Flag = &mut flags[index];
+
+    if flag.mode == ArgMode::NoArgument || flag.value.is_some() {
+        return Err(Error::UnexpectedArgument(source.clone(), index));
+    }
+
+    /* it is guaranteed that there's an expected type thank to 'check_integrity'
+     * function
+     */
+    match flag.expected.unwrap() {
+        ArgExpectedType::Txt => flag.value = Some(ArgValue::Txt(source.clone())),
+        ArgExpectedType::I32 => flag.value = Some(ArgValue::I32(
+            source.parse::<i32>().map_err(|_| Error::WrongTypeProvided(source.clone(), index))?
+        )),
+        ArgExpectedType::U32 => flag.value = Some(ArgValue::U32(
+            source.parse::<u32>().map_err(|_| Error::WrongTypeProvided(source.clone(), index))?
+        )),
+        ArgExpectedType::I64 => flag.value = Some(ArgValue::I64(
+            source.parse::<i64>().map_err(|_| Error::WrongTypeProvided(source.clone(), index))?
+        )),
+        ArgExpectedType::U64 => flag.value = Some(ArgValue::U64(
+            source.parse::<u64>().map_err(|_| Error::WrongTypeProvided(source.clone(), index))?
+        )),
+        ArgExpectedType::F64 => flag.value = Some(ArgValue::F64(
+            source.parse::<f64>().map_err(|_| Error::WrongTypeProvided(source.clone(), index))?
+        )),
+    }
+    Ok(())
 }
 
 pub fn argrs (args: Vec<String>, flags: &mut [Flag]) -> Result<Argrs, Error> {
     check_integrity(flags) ?;
-    let mut f_lasidx: Option<usize> = None;
 
-    for arg in args.iter().skip(1) {
+    let mut flastindex: Option<usize> = None;
+
+    for (i, arg) in args.iter().skip(1).enumerate() {
         let length: usize = arg.len();
         let char1 : Option<char> = arg.chars().nth(0);
         let char2 : Option<char> = arg.chars().nth(1);
 
         match (length, char1, char2) {
             (2.., Some('-'), Some(ch2)) if ch2.is_ascii_alphanumeric() => {
-                f_lasidx = parse_shortopt(&arg, flags) ?;
+                flastindex = parse_shortopt(&arg, flags) ?;
             }
             (3.., Some('-'), Some('-')) => {
-                f_lasidx = parse_longopt(&arg, flags) ?;
+                flastindex = parse_longopt(&arg, flags) ?;
             }
             (2, Some('-'), Some('-')) => {
-                todo!();
+                return Ok( Argrs {
+                    positional: Some(args[(i + 2)..].iter().cloned().collect()),
+                    flastindex
+                });
             }
             _ => {
-                todo!();
+                parse_argument(&arg, flastindex, flags) ?;
             }
         }
     }
@@ -206,6 +263,7 @@ pub fn argrs (args: Vec<String>, flags: &mut [Flag]) -> Result<Argrs, Error> {
     // TODO: make sure the prev flag has its argument
 
     Ok(Argrs {
-        flastindex: f_lasidx,
+        positional: None,
+        flastindex,
     })
 }
