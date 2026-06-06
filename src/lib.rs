@@ -1,53 +1,90 @@
 use std::collections::HashSet;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum Error {
     /* usize: represents the index of the flag at fault
      */
-    #[error("flag at position {0}, shares shortname with a previous flag")]
     DupShortname(usize),
-    #[error("flag at position {0}, shares longname with a previous flag")]
     DupLongname(usize),
-    #[error("flag at position {0}, is missing an identifier")]
     AnonymousFlag(usize),
-    #[error("flag at position {0}, has an invalid shortname")]
     InvalidShortname(usize),
-    #[error("flag at position {0}, shouldn't expect a value (check mode)")]
     ShouldntExpectedAValue(usize),
-    #[error("flag at position {0}, should expect a value (check mode)")]
     ShouldExpectedAValue(usize),
 
     /* String: argument provided
      * usize: position of the shortopt at fault
      */
-    #[error("unknown shortname `{0}` at offset {1}")]
     UnknownShortname(String, usize),
     /* String: argument provided
      * usize: name's offset (always 2 '--')
      * usize: length of the flag name provided
      */
-    #[error("unknown longname `{0}` at offset {1} up to {2}")]
     UnknownLongname(String, usize, usize),
     /* String: argument provided
      * usize: position of the shortopt at fault
      */
-    #[error("bad grouping `{0}`, shortname flag at {1} requires an argument yet it will not be provided")]
     BadGrouping(String, usize),
     /* String: argument provided */
-    #[error("`{0}` is a premature argument")]
     PrematureArgument(String),
     /* String: argument provided
      * usize: index of the last flag seen
      */
-    #[error("cannot assign `{0}` to any flag")]
     UnexpectedArgument(String, usize),
-    #[error("`{0}` argument does not satisfaces the argument type requested")]
     WrongTypeProvided(String, usize),
     /* usize: flag's index whose argument wasn't provided
      */
-    #[error("flag with position of {0} is missing its argument")]
     MissingArgument(usize)
+}
+
+impl Error {
+    fn programmer_fault (p: usize, err: usize) {
+        let fmt: String = match err {
+            0   => format!("There's a duplicate shortname at position {p}"),
+            1   => format!("There's a duplicate longname at position {p}"),
+            2   => format!("Flag at position {p} has no identifier"),
+            3   => format!("Flag at position {p} has an invalid shortname"),
+            4   => format!("Flag at position {p} should not expect a value"),
+            5   => format!("Flag at position {p} should expect a value"),
+            6.. => unreachable!()
+        };
+        eprintln!("\tprogrammer error: {fmt}");
+    }
+
+    fn highlight (source: &str, pos: usize, len: usize, msg: &str) {
+        eprintln!("{source}");
+        for _i in 0..pos { eprint!(" "); }
+        for _i in 0..len { eprint!("~"); }
+        eprintln!(" : {msg}");
+    }
+
+    fn unknown_shortname (source: &String, pos: usize) {
+    }
+
+    pub fn error (&self, callername: &str) {
+        eprintln!("\x1b[1;38;5;160mError\x1b[0;1m:{callername}\x1b[0m: cannot continue!");
+        match self {
+            Error::DupShortname(pos)              => Self::programmer_fault(*pos, 0),
+            Error::DupLongname(pos)               => Self::programmer_fault(*pos, 1),
+            Error::AnonymousFlag(pos)             => Self::programmer_fault(*pos, 2),
+            Error::InvalidShortname(pos)          => Self::programmer_fault(*pos, 3),
+            Error::ShouldntExpectedAValue(pos)    => Self::programmer_fault(*pos, 4),
+            Error::ShouldExpectedAValue(pos)      => Self::programmer_fault(*pos, 5),
+            Error::UnknownShortname(src, pos)     => Self::highlight(src, *pos, 1, "unknown shortname"),
+            Error::UnknownLongname(src, pos, len) => Self::highlight(src, *pos, *len, "unknown longname"),
+            Error::BadGrouping(src, pos)          => Self::highlight(src, *pos, 1, "bad grouping; this flag requires an argument"),
+            Error::PrematureArgument(src)         => Self::highlight(src, 0, src.len(), "premature argument"),
+
+            /* String: argument provided
+             * usize: name's offset (always 2 '--')
+             * usize: length of the flag name provided
+             *
+            UnexpectedArgument(String, usize),
+            WrongTypeProvided(String, usize),
+            MissingArgument(usize)*/
+
+            _ => todo!()
+        }
+    }
 }
 
 #[derive(Copy, Clone, PartialEq)]
