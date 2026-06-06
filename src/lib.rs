@@ -1,37 +1,52 @@
 use std::collections::HashSet;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum Error {
-    /* usize: represents the index of the flag at fault */
+    /* usize: represents the index of the flag at fault
+     */
+    #[error("flag at position {0}, shares shortname with a previous flag")]
     DupShortname(usize),
+    #[error("flag at position {0}, shares longname with a previous flag")]
     DupLongname(usize),
+    #[error("flag at position {0}, is missing an identifier")]
     AnonymousFlag(usize),
+    #[error("flag at position {0}, has an invalid shortname")]
     InvalidShortname(usize),
+    #[error("flag at position {0}, shouldn't expect a value (check mode)")]
     ShouldntExpectedAValue(usize),
+    #[error("flag at position {0}, should expect a value (check mode)")]
     ShouldExpectedAValue(usize),
 
     /* String: argument provided
      * usize: position of the shortopt at fault
      */
+    #[error("unknown shortname `{0}` at offset {1}")]
     UnknownShortname(String, usize),
     /* String: argument provided
      * usize: name's offset (always 2 '--')
      * usize: length of the flag name provided
      */
+    #[error("unknown longname `{0}` at offset {1} up to {2}")]
     UnknownLongname(String, usize, usize),
     /* String: argument provided
      * usize: position of the shortopt at fault
      */
+    #[error("bad grouping `{0}`, shortname flag at {1} requires an argument yet it will not be provided")]
     BadGrouping(String, usize),
     /* String: argument provided */
+    #[error("`{0}` is a premature argument")]
     PrematureArgument(String),
     /* String: argument provided
      * usize: index of the last flag seen
      */
+    #[error("cannot assign `{0}` to any flag")]
     UnexpectedArgument(String, usize),
+    #[error("`{0}` argument does not satisfaces the argument type requested")]
     WrongTypeProvided(String, usize),
     /* usize: flag's index whose argument wasn't provided
      */
+    #[error("flag with position of {0} is missing its argument")]
     MissingArgument(usize)
 }
 
