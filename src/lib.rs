@@ -36,57 +36,6 @@ pub enum Error {
     MissingArgument(usize)
 }
 
-impl Error {
-    fn programmer_fault (p: usize, err: usize) {
-        let fmt: String = match err {
-            0   => format!("There's a duplicate shortname at position {p}"),
-            1   => format!("There's a duplicate longname at position {p}"),
-            2   => format!("Flag at position {p} has no identifier"),
-            3   => format!("Flag at position {p} has an invalid shortname"),
-            4   => format!("Flag at position {p} should not expect a value"),
-            5   => format!("Flag at position {p} should expect a value"),
-            6.. => unreachable!()
-        };
-        eprintln!("\tprogrammer error: {fmt}");
-    }
-
-    fn highlight (source: &str, pos: usize, len: usize, msg: &str) {
-        eprintln!("{source}");
-        for _i in 0..pos { eprint!(" "); }
-        for _i in 0..len { eprint!("~"); }
-        eprintln!(" : {msg}");
-    }
-
-    fn unknown_shortname (source: &String, pos: usize) {
-    }
-
-    pub fn error (&self, callername: &str) {
-        eprintln!("\x1b[1;38;5;160mError\x1b[0;1m:{callername}\x1b[0m: cannot continue!");
-        match self {
-            Error::DupShortname(pos)              => Self::programmer_fault(*pos, 0),
-            Error::DupLongname(pos)               => Self::programmer_fault(*pos, 1),
-            Error::AnonymousFlag(pos)             => Self::programmer_fault(*pos, 2),
-            Error::InvalidShortname(pos)          => Self::programmer_fault(*pos, 3),
-            Error::ShouldntExpectedAValue(pos)    => Self::programmer_fault(*pos, 4),
-            Error::ShouldExpectedAValue(pos)      => Self::programmer_fault(*pos, 5),
-            Error::UnknownShortname(src, pos)     => Self::highlight(src, *pos, 1, "unknown shortname"),
-            Error::UnknownLongname(src, pos, len) => Self::highlight(src, *pos, *len, "unknown longname"),
-            Error::BadGrouping(src, pos)          => Self::highlight(src, *pos, 1, "bad grouping; this flag requires an argument"),
-            Error::PrematureArgument(src)         => Self::highlight(src, 0, src.len(), "premature argument"),
-
-            /* String: argument provided
-             * usize: name's offset (always 2 '--')
-             * usize: length of the flag name provided
-             *
-            UnexpectedArgument(String, usize),
-            WrongTypeProvided(String, usize),
-            MissingArgument(usize)*/
-
-            _ => todo!()
-        }
-    }
-}
-
 #[derive(Copy, Clone, PartialEq)]
 pub enum ArgMode {
     Required,
@@ -135,6 +84,90 @@ impl Flag {
         }
     }
 }
+
+impl ArgExpectedType {
+    pub fn to_string (&self) -> &str {
+        match self {
+            ArgExpectedType::Txt => "text", 
+            ArgExpectedType::F64 => "f64", 
+            ArgExpectedType::I32 => "i32", 
+            ArgExpectedType::U32 => "u32", 
+            ArgExpectedType::I64 => "i64", 
+            ArgExpectedType::U64 => "u64", 
+        }
+    }
+}
+
+impl Error {
+    fn programmer_fault (p: usize, err: usize) {
+        let fmt: String = match err {
+            0   => format!("There's a duplicate shortname at position {p}"),
+            1   => format!("There's a duplicate longname at position {p}"),
+            2   => format!("Flag at position {p} has no identifier"),
+            3   => format!("Flag at position {p} has an invalid shortname"),
+            4   => format!("Flag at position {p} should not expect a value"),
+            5   => format!("Flag at position {p} should expect a value"),
+            6.. => unreachable!()
+        };
+        eprintln!("\tprogrammer error: {fmt}");
+    }
+
+    fn highlight (source: &str, pos: usize, len: usize, msg: &str) {
+        eprintln!("$ [...] {source} [...]");
+        for _ in 0..(8 + pos) { eprint!(" "); }
+        for _ in 0..len { eprint!("~"); }
+        eprintln!(" : \x1b[1m{msg}\x1b[0m");
+    }
+
+    fn unexpected_argument (source: &str, flag: &Flag) {
+        let msg:String = match (flag.shortname, flag.longname, flag.expected) {
+            (Some(s), Some(l), Some(ref e)) => format!("unexpected argument for -{s} | --{l} flag; expecting {}", e.to_string()),
+            (Some(s), None,    Some(ref e)) => format!("unexpected argument for -{s} flag; expecting {}", e.to_string()),
+            (None, Some(l),    Some(ref e)) => format!("unexpected argument for --{l} flag; expecting {}", e.to_string()),
+            _ => unreachable!(),
+        };
+        Self::highlight(source, 0, source.len(), &msg);
+    }
+
+    fn wrong_type_provided (source: &str, flag: &Flag) {
+        let msg:String = match (flag.shortname, flag.longname) {
+            (Some(s), Some(l)) => format!("wrong argument type for -{s} | --{l} flag"),
+            (Some(s), None   ) => format!("wrong argument type for -{s} flag"),
+            (None,    Some(l)) => format!("wrong argument type for --{l} flag"),
+            _ => unreachable!()
+        };
+        Self::highlight(source, 0, source.len(), &msg);
+    }
+
+    fn missing_argument (flag: &Flag) {
+        match (flag.shortname, flag.longname, flag.expected) {
+            (Some(s), Some(l), Some(e)) => eprintln!("\t-{s} | --{l} flag is expecting a {}, yet no provided", e.to_string()),
+            (Some(s), None,    Some(e)) => eprintln!("\t-{s} flag is expecting a {}, yet no provided", e.to_string()),
+            (None, Some(l),    Some(e)) => eprintln!("\t--{l} flag is expecting a {}, yet no provided", e.to_string()),
+            _ => unreachable!()
+        };
+    }
+
+    pub fn error (&self, callername: &str, flags: &[Flag]) {
+        eprintln!("\x1b[1;38;5;160mError\x1b[0;1m:{callername}\x1b[0m: cannot continue!");
+        match self {
+            Error::DupShortname(pos)              => Self::programmer_fault(*pos, 0),
+            Error::DupLongname(pos)               => Self::programmer_fault(*pos, 1),
+            Error::AnonymousFlag(pos)             => Self::programmer_fault(*pos, 2),
+            Error::InvalidShortname(pos)          => Self::programmer_fault(*pos, 3),
+            Error::ShouldntExpectedAValue(pos)    => Self::programmer_fault(*pos, 4),
+            Error::ShouldExpectedAValue(pos)      => Self::programmer_fault(*pos, 5),
+            Error::UnknownShortname(src, pos)     => Self::highlight(src, *pos, 1, "unknown shortname"),
+            Error::UnknownLongname(src, pos, len) => Self::highlight(src, *pos, *len, "unknown longname"),
+            Error::BadGrouping(src, pos)          => Self::highlight(src, *pos, 1, "bad grouping; this flag requires an argument"),
+            Error::PrematureArgument(src)         => Self::highlight(src, 0, src.len(), "premature argument"),
+            Error::UnexpectedArgument(src, nflag) => Self::unexpected_argument(src, &flags[*nflag]),
+            Error::WrongTypeProvided(src, nflag)  => Self::wrong_type_provided(src, &flags[*nflag]),
+            Error::MissingArgument(nflag)         => Self::missing_argument(&flags[*nflag]),
+        }
+    }
+}
+
 
 /* makes sure all the flags defined make sense as an unit and as group memeber
  * checks:

@@ -5,6 +5,6 @@
     [x] parse --flag=argument
     [x] parse positional arguments
     [x] check error handling (enum)
-    [ ] implement an API-method for error messsages
+    [x] implement an API-method for error messsages
     [ ] implement an API-method for printing program's usage
     [ ] implement an algorithm for most similiar flag name (--flah 'did you mean --flag?')
