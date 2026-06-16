@@ -1,0 +1,35 @@
+
+	stdv: a simple yet usable implementation of a vector<T> in and for C
+
+	~ ABOUT:
+	stdv, is a implementation for having a vector library for C programming language.
+	It attempts to implement most of the std::vector capabilities from C++ (see https://cppreference.com/cpp/container/vector).
+
+	~ API INTERFACE
+	Access
+	* `stdv_at`       method: returns the element at position `at`
+	* `stdv_front`    method: access the first element 
+	* `stdv_back`     method: access the last element 
+	* `stdv_data`     method: returns a pointer to the underlying array serving as element storage
+	* `stdv_pbeg`     method: returns a pointer to the first element of the array
+	* `stdv_pend`     method: returns a pointer to the last element of the array
+	* `stdv_pat`      method: returns a pointer to the specified position `at`
+	Capacity
+	* `stdv_empty`    method: checks whether the container is empty 
+	* `stdv_size`     method: returns the number of elements
+	* `stdv_capacity` method: returns the current vector capacity
+	* `stdv_is_mut`   method: returns wether the vector is mutable or not
+	* `stdv_reserve`  method: reserves storage
+	* `stdv_shrink`   method: reduces memory usage by freeing unused memory 
+	* `stdv_clear`    method: clears the contents
+	Modifiers
+	* `stdv_put`      method: inserts an element at the end of the array and returns it (1)
+	* `stdv_pop`      method: deletes the last element of the array and returns it
+	* `stdv_insert`   method: inserts the element at the position given
+	* `stdv_erase`    method: erase the element at position given
+	* `stdv_imut`     method: shrinks the array and makes the array imutable
+
+	~ INDEXING ERRORS:
+	stdv will behave as normal arrays act, if the index provided is greater than the current array's
+	length, stdv will perform the operation anyways. Hope for the best and take care of indexing
+

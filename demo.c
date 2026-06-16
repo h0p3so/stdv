@@ -1,62 +1,34 @@
-#define STDV_IMPLEMENTATION
 #include "stdv.h"
 
 #include <stdio.h>
 
+struct Sheet {
+	FILE *file;
+	char *source;
+	size_t length;
+};
+
 int main () {
-	int *numbers = NULL;
-	int a = stdv_put(numbers, 5);
-	printf("is empty: %d\n", stdv_is_empty(numbers));
+	struct Sheet **sheets = NULL;
 
-	printf("%d\n", numbers[0]);
-	printf("%ld\n", stdv_len_u64(numbers));
-	printf("%ld\n", stdv_cap_u64(numbers));
+	struct Sheet *s = calloc(1, sizeof(struct Sheet));
+	s->source = "some source";
 
-	puts("-*-");
-	stdv_put(numbers, 543);
-	printf("%d\n", numbers[1]);
-	printf("%ld\n", stdv_len_u64(numbers));
-	printf("%ld\n", stdv_cap_u64(numbers));
-
-	puts("-*-");
-	a = stdv_pop(numbers);
-	printf("poped: %d\n", a);
-	printf("%ld\n", stdv_len_u64(numbers));
-	printf("%ld\n", stdv_cap_u64(numbers));
-
-	puts("-*-");
-	stdv_put(numbers, -69);
-	printf("%d\n", stdv_get(numbers, 1));
-	printf("%ld\n", stdv_len_u64(numbers));
-	printf("%ld\n", stdv_cap_u64(numbers));
+	struct Sheet *ss = stdv_put(sheets, s);
 
 
-	puts("-*-");
-	stdv_put(numbers, -9);
+	printf("before free\n");
+	printf("%s: %s\n", "src", s->source);
+	printf("%s: %s\n", "src", ss->source);
+	printf("%s: %s\n", "src", sheets[0]->source);
 
-	printf("beg: %d\n", stdv_beg(numbers));
-	printf("beg: %d\n", stdv_get(numbers, 1));
-	printf("end: %d\n", stdv_end(numbers));
+	bool rm = stdv_pop_and_free(sheets);
+	printf("ok rm: %d\n", rm);
 
-	puts("-*-");
-	a = stdv_pop(numbers);
-	a = stdv_pop(numbers);
-	a = stdv_pop(numbers);
-	printf("len: %ld\n", stdv_len_u64(numbers));
-	printf("cap: %ld\n", stdv_cap_u64(numbers));
+	printf("s add : %p %d\n", s, s == NULL);
+	printf("ss add: %p\n", ss);
+	printf("ss add: %p\n", sheets[0]);
 
-	puts("-----------------------------------------");
-
-	printf("is empty: %d\n", stdv_is_empty(numbers));
-	a = stdv_put(numbers, 1);
-	printf("is empty: %d\n", stdv_is_empty(numbers));
-	printf("%d\n", numbers[0]);
-	printf("len: %ld\n", stdv_len_u64(numbers));
-	printf("cap: %ld\n", stdv_cap_u64(numbers));
-	puts("shrinking");
-	stdv_shrink(numbers);
-	printf("len: %ld\n", stdv_len_u64(numbers));
-	printf("cap: %ld\n", stdv_cap_u64(numbers));
 
 	return 0;
 }

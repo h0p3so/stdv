@@ -1,9 +1,10 @@
 #ifndef STDV_H
 #define STDV_H
 
+#include <stdio.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 /*
  *  _____________________________________
@@ -16,52 +17,55 @@
  *                 ||----w |
  *                 ||     ||
  */
+#define _STDV_INIT_CAPACITY 64
+#define _STDV_GROWTH_FACTOR 2
+#define _STDV_GET_HEADER(v) ((_stdv_header*) (v) - 1)
+
 typedef struct {
 	uint64_t cap;
 	uint64_t len;
-	bool     is_mut;
-} _StdvHeader;
+	bool is_mut;
+} _stdv_header;
 
-#define _STDV_INIT_CAP                 64
-#define _STDV_GROWTH_FACTOR            2
-#define _STDV_GET_STDVHEADER(vec)      ((_StdvHeader*) (vec) - 1)
-
-void *_stdv_needs_to_grow (void *vec, size_t membsz)
+/* takes the pointer to the array and checks if it needs to be created (allocated) or resized.
+ * In both cases it will return the new or same address position for the array.
+ */
+void *_stdv_needs_to_grow (void *vec, const size_t membsz)
 {
 	if (vec == NULL)
 	{
-		_StdvHeader *header = (_StdvHeader*) malloc(_STDV_INIT_CAP * membsz + sizeof(_StdvHeader));
-		header->len         = 0;
-		header->cap         = _STDV_INIT_CAP;
-		header->is_mut      = true;
-		vec                 = (void*)(header + 1);
+		_stdv_header *header = (_stdv_header*) malloc(sizeof(_stdv_header) + _STDV_INIT_CAPACITY * membsz);
+		header-> len = 0;
+		header-> cap = _STDV_INIT_CAPACITY;
+		header->is_mut = true;
+		vec = (void*) (header + 1);
 		return vec;
 	}
 
-	_StdvHeader *header = _STDV_GET_STDVHEADER(vec);
+	_stdv_header *header = _STDV_GET_HEADER(vec);
 	if (header->len < header->cap)
 	{
 		return vec;
 	}
 
 	header->cap *= _STDV_GROWTH_FACTOR;
-	header       = realloc(header, header->cap * membsz + sizeof(_StdvHeader));
-	vec          = (void*) (header + 1);
+	header = (_stdv_header*) realloc(header, sizeof(*header) + header->cap * membsz);
+	vec = (void*) (header + 1);
 	return vec;
 }
 
-void *_stdv_shrink (void *vec)
+bool _stdv_free (void **address)
 {
-	_StdvHeader *header = _STDV_GET_STDVHEADER(vec);
-	const int64_t diff = header->cap - header->len;
-
-	if (diff <= 0) {
-		return vec;
+	if (*address == NULL)
+	{
+		return false;
 	}
 
-	header->cap = header->len;
-	free(vec + header->len);
-	return vec;
+	printf("freeing: %p\n", *address);
+
+	free(*address);
+	*address = NULL;
+	return true;
 }
 
 /*
@@ -74,24 +78,25 @@ void *_stdv_shrink (void *vec)
  *                 ||----w |
  *                 ||     ||
  */
-#define stdv_put(vec, x)     ((vec) = _stdv_needs_to_grow(vec, sizeof(*vec)), (vec)[_STDV_GET_STDVHEADER(vec)->len++] = x)
 
-#define stdv_is_empty(vec)   ((vec) ? (_STDV_GET_STDVHEADER(vec)->len == 0) : 0)
-#define stdv_len_u64(vec)    ((uint64_t) _STDV_GET_STDVHEADER(vec)->len)
-#define stdv_cap_u64(vec)    ((uint64_t) _STDV_GET_STDVHEADER(vec)->cap)
-#define stdv_shrink(vec)     ((vec) = _stdv_shrink(vec))
+#define stdv_empty(vec)           ((vec) ? (stdv_size(vec) == 0) : 1)
+#define stdv_size(vec)            (_STDV_GET_HEADER(vec)->len)
+#define stdv_capacity(vec)        (_STDV_GET_HEADER(vec)->cap)
+#define stdv_is_mut(vec)          (_STDV_GET_HEADER(vec)->is_mut)
+#define stdv_reserve(vec, newcap) 1
+#define stdv_shrink(vec)          2
+#define stdv_clear(vec)           3
 
-#define stdv_get(vec, at)    ((vec)[at])
-#define stdv_get_or(vec, or)
-#define stdv_beg(vec)        (*(vec))
-#define stdv_end(vec)        ((vec)[_STDV_GET_STDVHEADER(vec)->len - 1])
-#define stdv_ptr_beg(vec)    (&(*(vec)))
-#define stdv_ptr_end(vec)    (&(vec)[_STDV_GET_STDVHEADER(vec)->len - 1])
-#define stdv_ptr_at(vec, at) (&(vec)[at])
+#define stdv_put(vec, a)          ((vec) = _stdv_needs_to_grow(vec, sizeof(*vec)), (vec)[_STDV_GET_HEADER(vec)->len++] = (a))
+#define stdv_put_ptr(vec, a)      ((vec) = _stdv_needs_to_grow(vec, sizeof(*vec)), (vec)[_STDV_GET_HEADER(vec)->len++] = (a), &((vec)[_STDV_GET_HEADER(vec)->len -  1]))
 
-#define stdv_pop(vec)        ((vec)[--_STDV_GET_STDVHEADER(vec)->len])
+#define stdv_pop(vec)             ((vec)[--_STDV_GET_HEADER(vec)->len])
+#define stdv_pop_ptr(vec)         (&((vec)[--_STDV_GET_HEADER(vec)->len]))
 
-#define stdv_make_imut(vec)
-
+/* this macro does not modify the value of the original owner (the variable which
+ * called malloc/calloc), therefore, once this macro is called, the original variable
+ * will be useless
+ */
+#define stdv_pop_and_free(vec)    (_stdv_free((void*) (&(vec)[--_STDV_GET_HEADER(vec)->len])))
 
 #endif
