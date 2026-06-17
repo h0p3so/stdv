@@ -1,8 +1,6 @@
 #ifndef STDV_H
 #define STDV_H
 
-#include <stdio.h>				// TODO remove
-#include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,7 +15,6 @@
  *                 ||----w |
  *                 ||     ||
  */
-
 #define stdv_at(vec, at)          ((vec)[at])
 #define stdv_front(vec)           ((vec)[0])
 #define stdv_back(vec)            ((vec)[_STDV_GET_HEADER(vec)->len - 1])

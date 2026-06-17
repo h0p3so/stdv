@@ -5,6 +5,9 @@
 	stdv, is a implementation for having a vector library for C programming language.
 	It attempts to implement most of the std::vector capabilities from C++ (see https://cppreference.com/cpp/container/vector).
 
+	there's not an actual version for this project. I guess it will be updated whenever a new feature is needed
+	or a bug is discovered.
+
 	~ API INTERFACE
 	Access
 	* `stdv_at`       method: returns the element at position `at`
@@ -18,16 +21,13 @@
 	* `stdv_empty`    method: checks whether the container is empty 
 	* `stdv_size`     method: returns the number of elements
 	* `stdv_capacity` method: returns the current vector capacity
-	* `stdv_is_mut`   method: returns wether the vector is mutable or not
 	* `stdv_reserve`  method: reserves storage
 	* `stdv_shrink`   method: reduces memory usage by freeing unused memory 
-	* `stdv_clear`    method: clears the contents
 	Modifiers
 	* `stdv_put`      method: inserts an element at the end of the array and returns it (1)
 	* `stdv_pop`      method: deletes the last element of the array and returns it
 	* `stdv_insert`   method: inserts the element at the position given
 	* `stdv_erase`    method: erase the element at position given
-	* `stdv_imut`     method: shrinks the array and makes the array imutable
 
 	~ INDEXING ERRORS:
 	stdv will behave as normal arrays act, if the index provided is greater than the current array's
