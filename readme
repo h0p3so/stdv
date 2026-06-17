@@ -3,7 +3,8 @@
 
 	~ ABOUT:
 	stdv, is a implementation for having a vector library for C programming language.
-	It attempts to implement most of the std::vector capabilities from C++ (see https://cppreference.com/cpp/container/vector).
+	It attempts to implement most of the std::vector capabilities from C++
+	(see https://cppreference.com/cpp/container/vector).
 
 	there's not an actual version for this project. I guess it will be updated whenever a new feature is needed
 	or a bug is discovered.
