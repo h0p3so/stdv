@@ -5,6 +5,13 @@ API:
 	of 64. This macro can be ignored if the user-api needs an exact or greater capacity
 	then 64
 
+	* STDV_POS_OF_THE_LAST(vector, offset): it is a safe way of getting the position of last element
+	given an offset (if offset is zero it will simply return stdv_size(vector) - 1). This is needed
+	since all the api-methods are macros, when those macros are expanded parentheses can mess everything up.
+
+	`offset` cannot be negative because it would be (stdv_size(v) - 1 - (-offset)) which would lead into
+	undefined behavior
+
 	* STDV_ALWAYS_POWER_2: by default this macro is disabled. When found it makes stdv to
 	always shrink, create and reserve with a capacity power of 2 ignoring the capacity
 	given to the method unless such capacity is already a power of 2
