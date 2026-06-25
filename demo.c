@@ -2,33 +2,19 @@
 
 #include <stdio.h>
 
-struct Sheet {
-	FILE *file;
-	char *source;
-	size_t length;
-};
-
 int main () {
-	struct Sheet **sheets = NULL;
+	int *numbers = NULL;
+	stdv_put(numbers, 0);
 
-	struct Sheet *s = calloc(1, sizeof(struct Sheet));
-	s->source = "some source";
+	printf("%ld\n", stdv_capacity(numbers));
+	stdv_reserve(numbers, 32);
+	printf("%ld\n", stdv_capacity(numbers));
+	stdv_reserve(numbers, 65);
+	printf("%ld\n", stdv_capacity(numbers));
 
-	struct Sheet *ss = stdv_put(sheets, s);
+	stdv_shrink(numbers);
+	printf("%ld %p\n", stdv_capacity(numbers), numbers);
 
-
-	printf("before free\n");
-	printf("%s: %s\n", "src", s->source);
-	printf("%s: %s\n", "src", ss->source);
-	printf("%s: %s\n", "src", sheets[0]->source);
-
-	bool rm = stdv_pop_and_free(sheets);
-	printf("ok rm: %d\n", rm);
-
-	printf("s add : %p %d\n", s, s == NULL);
-	printf("ss add: %p\n", ss);
-	printf("ss add: %p\n", sheets[0]);
-
-
+	stdv_free(numbers);
 	return 0;
 }
