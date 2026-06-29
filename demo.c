@@ -1,8 +1,8 @@
 #include "stdv.h"
-
 #include <stdio.h>
 
-int main () {
+int main ()
+{
 	int *numbers = NULL;
 	stdv_put(numbers, 0);
 
