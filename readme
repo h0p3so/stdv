@@ -1,36 +1,96 @@
 
 	stdv: a simple yet usable implementation of a vector<T> in and for C
+API:
+	* STDV_STD_INIT_CAP: it works a suggestion to create a vector with an initial capacity
+	of 64. This macro can be ignored if the user-api needs an exact or greater capacity
+	then 64
 
-	~ ABOUT:
-	stdv, is a implementation for having a vector library for C programming language.
-	It attempts to implement most of the std::vector capabilities from C++
-	(see https://cppreference.com/cpp/container/vector).
+	* STDV_ALWAYS_POWER_2: by default this macro is disabled. When found it makes stdv to
+	always shrink, create and reserve with a capacity power of 2 ignoring the capacity
+	given to the method unless such capacity is already a power of 2
 
-	there's not an actual version for this project. I guess it will be updated whenever a new feature is needed
-	or a bug is discovered.
+	* stdv_create(membsz, cap): creates a new vector of type T with the capacity given (see STDV_ALWAYS_POWER_2)
 
-	~ API INTERFACE
-	Access
-	* `stdv_at`       method: returns the element at position `at`
-	* `stdv_front`    method: access the first element 
-	* `stdv_back`     method: access the last element 
-	* `stdv_data`     method: returns a pointer to the underlying array serving as element storage
-	* `stdv_pbeg`     method: returns a pointer to the first element of the array
-	* `stdv_pend`     method: returns a pointer to the last element of the array
-	* `stdv_pat`      method: returns a pointer to the specified position `at`
-	Capacity
-	* `stdv_empty`    method: checks whether the container is empty 
-	* `stdv_size`     method: returns the number of elements
-	* `stdv_capacity` method: returns the current vector capacity
-	* `stdv_reserve`  method: reserves storage
-	* `stdv_shrink`   method: reduces memory usage by freeing unused memory 
-	Modifiers
-	* `stdv_put`      method: inserts an element at the end of the array and returns it (1)
-	* `stdv_pop`      method: deletes the last element of the array and returns it
-	* `stdv_insert`   method: inserts the element at the position given
-	* `stdv_erase`    method: erase the element at position given
+	* stdv_get(vector, pos): returns the element at `pos`. does not bound-check; reading
+	out of bounds is undefined behaviour
 
-	~ INDEXING ERRORS:
-	stdv will behave as normal arrays act, if the index provided is greater than the current array's
-	length, stdv will perform the operation anyways. Hope for the best and take care of indexing
+	* stdv_get_or(vector, pos, or): like stdv_get, but returns `or` instead if `vector`
+	is NULL or `pos` is out of bounds
+
+	* stdv_front(vector): returns the first element. does not check that `vector` is
+	non-empty
+
+	* stdv_front_or(vector, or): like stdv_front, but returns `or` if `vector` is NULL
+	or empty
+
+	* stdv_back(vector): returns the last element. does not check that `vector` is
+	non-empty
+
+	* stdv_back_or(vector, or): like stdv_back, but returns `or` if `vector` is NULL or
+	empty
+
+	* stdv_pbeg(vector): returns a pointer to the first element
+
+	* stdv_pbeg_or(vector, or): like stdv_pbeg, but returns `or` if `vector` is NULL or
+	empty
+
+	* stdv_pend(vector): returns a pointer to the last element
+
+	* stdv_pend_or(vector, or): like stdv_pend, but returns `or` if `vector` is NULL or
+	empty
+
+	* stdv_pget(vector, pos): returns a pointer to the element at `pos`. does not
+	bound-check
+
+	* stdv_pget_or(vector, pos, or): like stdv_pget, but returns `or` if `vector` is
+	NULL or `pos` is out of bounds
+
+	* stdv_empty(vector): returns true if `vector` is NULL or has no elements
+
+	* stdv_size(vector): returns the number of elements currently stored. `vector`
+	cannot be NULL
+
+	* stdv_capacity(vector): returns the number of elements `vector` can currently hold
+	before it needs to grow. `vector` cannot be NULL
+
+	* stdv_reserve(vector, newcap): grows `vector` so it can hold at least `newcap`
+	elements without reallocating, unless `vector` already has that capacity, in which
+	case nothing happens. `vector` can be NULL, in which case a new vector is created
+	(see STDV_ALWAYS_POWER_2)
+
+	* stdv_shrink(vector): reallocates `vector` down to a capacity that exactly fits its
+	current length (see STDV_ALWAYS_POWER_2). `vector` can be NULL, in which case
+	nothing happens
+
+	* stdv_pop_and_free(vector): removes the last element and frees it; only valid when
+	`vector`'s element type is itself a pointer, since this macro reinterprets the
+	popped element's bytes as a pointer and calls free() on it. returns true if
+	something was freed, false if the element was already NULL. this macro does not
+	modify the value of the original owner (the variable which called malloc/calloc),
+	therefore, once this macro is called, the original variable will be useless since
+	it will be pointing to an address already freed
+
+	* stdv_pop_ptr(vector): removes the last element and returns a pointer to it. the
+	element is not cleared or freed; the pointer is only valid until the next operation
+	that might reallocate `vector`
+
+	* stdv_pop(vector): removes and returns the last element by value
+
+	* stdv_erase(vector, pos): removes the element at `pos`, shifting every later
+	element left by one. does not bound-check
+
+	* stdv_put(vector, value): appends `value` to the end of `vector`, growing it if
+	needed. `vector` can be NULL, in which case a new vector is created with capacity
+	STDV_STD_INIT_CAP. returns the value just appended
+
+	* stdv_put_ptr(vector, value): like stdv_put, but returns a pointer to the appended
+	element instead of its value. the pointer is only valid until the next operation
+	that might reallocate `vector`
+
+	* stdv_insert(vector, pos, value): inserts `value` at `pos`, shifting every element
+	at or after `pos` right by one. grows `vector` if needed. `vector` can be NULL.
+	returns the value just inserted
+
+	* stdv_free(vector): frees the vector if it exists and then set `vector` to null. `vector` cannot be a literal
+	`NULL` since it would produce a 'NULL = NULL'
 

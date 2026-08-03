@@ -5,54 +5,48 @@
 #include <stdlib.h>
 #include <string.h>
 
-/*
- *  ___________________________
- * < actual user-api methods   >
- *  ---------------------------
- *         \   ^__^
- *          \  (oo)\_______
- *             (__)\       )\/\
- *                 ||----w |
- *                 ||     ||
- */
-#define stdv_at(vec, at)          ((vec)[at])
-#define stdv_front(vec)           ((vec)[0])
-#define stdv_back(vec)            ((vec)[_STDV_GET_HEADER(vec)->len - 1])
-#define stdv_pbeg(vec)            (&(vec)[0])
-#define stdv_pend(vec)            (&(vec)[_STDV_GET_HEADER(vec)->len - 1])
-#define stdv_pat(vec, at)         (&(vec)[at])
+#define STDV_STD_INIT_CAP        64
 
-#define stdv_empty(vec)           ((vec) ? (stdv_size(vec) == 0) : 1)
-#define stdv_size(vec)            (_STDV_GET_HEADER(vec)->len)
-#define stdv_capacity(vec)        (_STDV_GET_HEADER(vec)->cap)
-#define stdv_reserve(vec, newcap) ((vec) = _stdv_try_reserve(vec, sizeof(*vec), newcap))
-#define stdv_shrink(vec)          ((vec) = _stdv_shrink(vec, sizeof(*vec)))
+#define stdv_create(membsz, cap) (_stdv_create(membsz, cap))
+#define stdv_free(v)             ((void) ((v) ? free((_stdv_header*)(v) - 1) : (void)0), (v)=NULL)
+
+#define stdv_get(v, p)           ((v)[p])
+#define stdv_get_or(v, p, or)    (((v) && (p) < stdv_size(v)) ? stdv_get(v, p) : (or))
+
+#define stdv_front(v)            ((v)[0])
+#define stdv_front_or(v, or)     (((v) && stdv_size(v) > 0) ? stdv_front(v) : (or))
+
+#define stdv_back(v)             ((v)[stdv_size(v) - 1])
+#define stdv_back_or(v, or)      (((v) && stdv_size(v) > 0) ? stdv_back(v) : (or))
+
+#define stdv_pbeg(v)             (&(v)[0])
+#define stdv_pbeg_or(v, or)      (((v) && stdv_size(v) > 0) ? stdv_pbeg(v) : (or))
+
+#define stdv_pend(v)             (&(v)[_STDV_GET_HEADER(v)->len - 1])
+#define stdv_pend_or(v, or)      (((v) && stdv_size(v) > 0) ? stdv_pend(v) : (or))
+
+#define stdv_pget(v, p)          (&(v)[p])
+#define stdv_pget_or(v, p, or)   (((v) && (p) < stdv_size(v)) ? stdv_pget(v, p) : (or))
+
+#define stdv_empty(v)            ((v) ? (stdv_size(v) == 0) : 1)
+#define stdv_size(v)             (_STDV_GET_HEADER(v)->len)
+#define stdv_capacity(v)         (_STDV_GET_HEADER(v)->cap)
+#define stdv_reserve(v, newcap)  ((v) = ((v) ? _stdv_try_reserve(v, sizeof(*v), newcap) : stdv_create(sizeof(*v), newcap)))
+#define stdv_shrink(v)           ((v) = _stdv_shrink(v, sizeof(*v)))
 
 /* this macro does not modify the value of the original owner (the variable which
  * called malloc/calloc), therefore, once this macro is called, the original variable
- * will be useless since it will be pointing to an address was already freed
+ * will be useless since it will be pointing to an address already freed
  */
-#define stdv_pop_and_free(vec)    (_stdv_free_element((void*) (&(vec)[--_STDV_GET_HEADER(vec)->len])))
-#define stdv_put(vec, a)          ((vec) = _stdv_may_grow(vec, sizeof(*vec), 0), (vec)[_STDV_GET_HEADER(vec)->len++] = (a))
-#define stdv_put_ptr(vec, a)      ((vec) = _stdv_may_grow(vec, sizeof(*vec), 0), (vec)[_STDV_GET_HEADER(vec)->len++] = (a), &((vec)[_STDV_GET_HEADER(vec)->len -  1]))
-#define stdv_pop(vec)             ((vec)[--_STDV_GET_HEADER(vec)->len])
-#define stdv_pop_ptr(vec)         (&((vec)[--_STDV_GET_HEADER(vec)->len]))
-#define stdv_insert(vec, at, a)   ((vec) = _stdv_may_grow(vec, sizeof(*vec), 1), memmove(vec + at + 1, vec + at, sizeof(*vec) * ++_STDV_GET_HEADER(vec)->len - at - 2), (vec)[at] = (a), (a))
-#define stdv_erase(vec, at)       (memmove(vec + at, vec + at + 1, sizeof(*vec) * --_STDV_GET_HEADER(vec)->len - at))
-#define stdv_free(vec)            ((void) ((vec) ? free((_stdv_header*)(vec) - 1) : (void)0), (vec)=NULL)
+#define stdv_pop_and_free(v)     (_stdv_free_element((void*) (&(v)[--_STDV_GET_HEADER(v)->len])))
+#define stdv_pop_ptr(v)          (&((v)[--_STDV_GET_HEADER(v)->len]))
+#define stdv_pop(v)              ((v)[--_STDV_GET_HEADER(v)->len])
+#define stdv_erase(v, p)         (memmove(v + p, v + p + 1, sizeof(*v) * (--_STDV_GET_HEADER(v)->len - p)))
 
-/*
- *  _____________________________________
- * / private fields; the user-api is not \
- * \ meant to invoke any of these code   /
- *  -------------------------------------
- *         \   ^__^
- *          \  (oo)\_______
- *             (__)\       )\/\
- *                 ||----w |
- *                 ||     ||
- */
-#define _STDV_INIT_CAPACITY 64
+#define stdv_put(v, a)           ((v) = _stdv_may_grow(v, sizeof(*v), 0), (v)[_STDV_GET_HEADER(v)->len++] = (a))
+#define stdv_put_ptr(v, a)       ((v) = _stdv_may_grow(v, sizeof(*v), 0), (v)[_STDV_GET_HEADER(v)->len++] = (a), &((v)[_STDV_GET_HEADER(v)->len -  1]))
+#define stdv_insert(v, p, a)     ((v) = _stdv_may_grow(v, sizeof(*v), 1), memmove(v + p + 1, v + p, sizeof(*v) * (++_STDV_GET_HEADER(v)->len - p - 1)), (v)[p] = (a))
+
 #define _STDV_GROWTH_FACTOR 2
 #define _STDV_GET_HEADER(v) ((_stdv_header*) (v) - 1)
 
@@ -64,6 +58,16 @@ typedef struct
 
 static inline size_t _stdv_next_power2 (size_t n)
 {
+#ifdef STDV_ALWAYS_POWER_2
+	if (n == 0)
+	{
+		return 1;
+	}
+	if ((n & (n - 1)) == 0)
+	{
+		return n;
+	}
+
 	n--;
 	n |= n >> 1;
 	n |= n >> 2;
@@ -71,10 +75,26 @@ static inline size_t _stdv_next_power2 (size_t n)
 	n |= n >> 8;
 	n |= n >> 16;
 	return ++n;
+#else
+	return (n == 0) ? 1 : n;
+#endif
+}
+
+static void *_stdv_create (const size_t membsz, const size_t initcap)
+{
+	const size_t cap = _stdv_next_power2(initcap);
+	_stdv_header *header = (_stdv_header*) malloc(sizeof(_stdv_header) + cap * membsz);
+	header->len = 0;
+	header->cap = cap;
+	return ((void*) (header + 1));
 }
 
 static void *_stdv_grow (void *vec, const size_t membsz, const size_t growth_factor)
 {
+	if (vec == NULL)
+	{
+		return vec;
+	}
 	_stdv_header *header = _STDV_GET_HEADER(vec);
 	header->cap *= growth_factor;
 	header = (_stdv_header*) realloc(header, sizeof(*header) + header->cap * membsz);
@@ -84,12 +104,9 @@ static void *_stdv_grow (void *vec, const size_t membsz, const size_t growth_fac
 
 static void *_stdv_may_grow (void *vec, const size_t membsz, const size_t extramemb)
 {
-	if (vec == NULL) {
-		_stdv_header *header = (_stdv_header*) malloc(sizeof(_stdv_header) + _STDV_INIT_CAPACITY * membsz);
-		header-> len = 0;
-		header-> cap = _STDV_INIT_CAPACITY;
-		vec = (void*) (header + 1);
-		return vec;
+	if (vec == NULL)
+	{
+		return _stdv_create(membsz, STDV_STD_INIT_CAP);
 	}
 
 	_stdv_header *header = _STDV_GET_HEADER(vec);
@@ -100,7 +117,7 @@ static void *_stdv_may_grow (void *vec, const size_t membsz, const size_t extram
 	return _stdv_grow(vec, membsz, _STDV_GROWTH_FACTOR);
 }
 
-bool _stdv_free_element (void **address)
+static bool _stdv_free_element (void **address)
 {
 	if (*address == NULL)
 	{
@@ -112,7 +129,7 @@ bool _stdv_free_element (void **address)
 	return true;
 }
 
-void *_stdv_try_reserve (void *vec, size_t membsz, size_t newcap)
+static void *_stdv_try_reserve (void *vec, size_t membsz, size_t newcap)
 {
 	_stdv_header *header = _STDV_GET_HEADER(vec);
 	if (newcap < header->cap)
@@ -124,8 +141,13 @@ void *_stdv_try_reserve (void *vec, size_t membsz, size_t newcap)
 	return _stdv_grow(vec, membsz, 1);
 }
 
-void *_stdv_shrink (void *vec, size_t membsz)
+static void *_stdv_shrink (void *vec, size_t membsz)
 {
+	if (vec == NULL)
+	{
+		return vec;
+	}
+
 	_stdv_header *oldhead = _STDV_GET_HEADER(vec);
 	const size_t len = oldhead->len;
 	const size_t cap = _stdv_next_power2(len);
