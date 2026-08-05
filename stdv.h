@@ -5,47 +5,54 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define STDV_STD_INIT_CAP        64
+#define STDV_STD_INIT_CAP           64
+#define STDV_POS_OF_THE_LAST(v, o)  (stdv_size(v) - 1 - o)
 
-#define stdv_create(membsz, cap) (_stdv_create(membsz, cap))
-#define stdv_free(v)             ((void) ((v) ? free((_stdv_header*)(v) - 1) : (void)0), (v)=NULL)
+#define stdv_create(membsz, cap)    (_stdv_create(membsz, cap))
+#define stdv_free(v)                ((void) ((v) ? free((_stdv_header*)(v) - 1) : (void)0), (v)=NULL)
 
-#define stdv_get(v, p)           ((v)[p])
-#define stdv_get_or(v, p, or)    (((v) && (p) < stdv_size(v)) ? stdv_get(v, p) : (or))
+#define stdv_get(v, p)              ((v)[p])
+#define stdv_get_or(v, p, or)       (((v) && (p) < stdv_size(v)) ? stdv_get(v, p) : (or))
 
-#define stdv_front(v)            ((v)[0])
-#define stdv_front_or(v, or)     (((v) && stdv_size(v) > 0) ? stdv_front(v) : (or))
+#define stdv_front(v)               ((v)[0])
+#define stdv_front_or(v, or)        (((v) && stdv_size(v) > 0) ? stdv_front(v) : (or))
 
-#define stdv_back(v)             ((v)[stdv_size(v) - 1])
-#define stdv_back_or(v, or)      (((v) && stdv_size(v) > 0) ? stdv_back(v) : (or))
+#define stdv_back(v)                ((v)[stdv_size(v) - 1])
+#define stdv_back_or(v, or)         (((v) && stdv_size(v) > 0) ? stdv_back(v) : (or))
 
-#define stdv_pbeg(v)             (&(v)[0])
-#define stdv_pbeg_or(v, or)      (((v) && stdv_size(v) > 0) ? stdv_pbeg(v) : (or))
+#define stdv_pbeg(v)                (&(v)[0])
+#define stdv_pbeg_or(v, or)         (((v) && stdv_size(v) > 0) ? stdv_pbeg(v) : (or))
 
-#define stdv_pend(v)             (&(v)[_STDV_GET_HEADER(v)->len - 1])
-#define stdv_pend_or(v, or)      (((v) && stdv_size(v) > 0) ? stdv_pend(v) : (or))
+#define stdv_pend(v)                (&(v)[_STDV_GET_HEADER(v)->len - 1])
+#define stdv_pend_or(v, or)         (((v) && stdv_size(v) > 0) ? stdv_pend(v) : (or))
 
-#define stdv_pget(v, p)          (&(v)[p])
-#define stdv_pget_or(v, p, or)   (((v) && (p) < stdv_size(v)) ? stdv_pget(v, p) : (or))
+#define stdv_pget(v, p)             (&(v)[p])
+#define stdv_pget_or(v, p, or)      (((v) && (p) < stdv_size(v)) ? stdv_pget(v, p) : (or))
 
-#define stdv_empty(v)            ((v) ? (stdv_size(v) == 0) : 1)
-#define stdv_size(v)             (_STDV_GET_HEADER(v)->len)
-#define stdv_capacity(v)         (_STDV_GET_HEADER(v)->cap)
-#define stdv_reserve(v, newcap)  ((v) = ((v) ? _stdv_try_reserve(v, sizeof(*v), newcap) : stdv_create(sizeof(*v), newcap)))
-#define stdv_shrink(v)           ((v) = _stdv_shrink(v, sizeof(*v)))
+#define stdv_empty(v)               ((v) ? (stdv_size(v) == 0) : 1)
+#define stdv_size(v)                (_STDV_GET_HEADER(v)->len)
+#define stdv_capacity(v)            (_STDV_GET_HEADER(v)->cap)
+#define stdv_reserve(v, newcap)     ((v) = ((v) ? _stdv_try_reserve(v, sizeof(*v), newcap) : stdv_create(sizeof(*v), newcap)))
+#define stdv_shrink(v)              ((v) = _stdv_shrink(v, sizeof(*v)))
 
-/* this macro does not modify the value of the original owner (the variable which
- * called malloc/calloc), therefore, once this macro is called, the original variable
- * will be useless since it will be pointing to an address already freed
- */
-#define stdv_pop_and_free(v)     (_stdv_free_element((void*) (&(v)[--_STDV_GET_HEADER(v)->len])))
-#define stdv_pop_ptr(v)          (&((v)[--_STDV_GET_HEADER(v)->len]))
-#define stdv_pop(v)              ((v)[--_STDV_GET_HEADER(v)->len])
-#define stdv_erase(v, p)         (memmove(v + p, v + p + 1, sizeof(*v) * (--_STDV_GET_HEADER(v)->len - p)))
+#define stdv_pop_and_free(v)        (_stdv_free_element((void*) (&(v)[--_STDV_GET_HEADER(v)->len])))
+#define stdv_pop_ptr(v)             (&((v)[--_STDV_GET_HEADER(v)->len]))
+#define stdv_pop(v)                 ((v)[--_STDV_GET_HEADER(v)->len])
 
-#define stdv_put(v, a)           ((v) = _stdv_may_grow(v, sizeof(*v), 0), (v)[_STDV_GET_HEADER(v)->len++] = (a))
-#define stdv_put_ptr(v, a)       ((v) = _stdv_may_grow(v, sizeof(*v), 0), (v)[_STDV_GET_HEADER(v)->len++] = (a), &((v)[_STDV_GET_HEADER(v)->len -  1]))
-#define stdv_insert(v, p, a)     ((v) = _stdv_may_grow(v, sizeof(*v), 1), memmove(v + p + 1, v + p, sizeof(*v) * (++_STDV_GET_HEADER(v)->len - p - 1)), (v)[p] = (a))
+#define stdv_put(v, a)              ((v) = _stdv_may_grow(v, sizeof(*v)), (v)[_STDV_GET_HEADER(v)->len++] = (a))
+#define stdv_put_ptr(v, a)          ((v) = _stdv_may_grow(v, sizeof(*v)), (v)[_STDV_GET_HEADER(v)->len++] = (a), &((v)[_STDV_GET_HEADER(v)->len -  1]))
+
+#define stdv_erase(v, p) do {                                                      \
+	memmove(v + p, v + p + 1, sizeof(*v) * (_STDV_GET_HEADER(v)->len - p - 1));    \
+	_STDV_GET_HEADER(v)->len--;                                                    \
+} while (0)
+
+#define stdv_insert(v, p, a) do {                                                  \
+	v = _stdv_may_grow(v, sizeof(*v));                                             \
+	memmove(v + p + 1, v + p, sizeof(*v) * _STDV_GET_HEADER(v)->len - p);          \
+	_STDV_GET_HEADER(v)->len++;                                                    \
+	v[p] = a;                                                                      \
+} while (0)
 
 #define _STDV_GROWTH_FACTOR 2
 #define _STDV_GET_HEADER(v) ((_stdv_header*) (v) - 1)
@@ -102,7 +109,7 @@ static void *_stdv_grow (void *vec, const size_t membsz, const size_t growth_fac
 	return vec;
 }
 
-static void *_stdv_may_grow (void *vec, const size_t membsz, const size_t extramemb)
+static void *_stdv_may_grow (void *vec, const size_t membsz)
 {
 	if (vec == NULL)
 	{
@@ -110,7 +117,7 @@ static void *_stdv_may_grow (void *vec, const size_t membsz, const size_t extram
 	}
 
 	_stdv_header *header = _STDV_GET_HEADER(vec);
-	if ((header->len + extramemb) < header->cap)
+	if (header->len < header->cap)
 	{
 		return vec;
 	}
