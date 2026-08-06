@@ -57,6 +57,8 @@
 #define _STDV_GROWTH_FACTOR 2
 #define _STDV_GET_HEADER(v) ((_stdv_header*) (v) - 1)
 
+#define _STDV_MAY_BE_UNUSED __attribute__ ((unused))
+
 typedef struct
 {
 	size_t cap;
@@ -87,7 +89,7 @@ static inline size_t _stdv_next_power2 (size_t n)
 #endif
 }
 
-static void *_stdv_create (const size_t membsz, const size_t initcap)
+_STDV_MAY_BE_UNUSED static void *_stdv_create (const size_t membsz, const size_t initcap)
 {
 	const size_t cap = _stdv_next_power2(initcap);
 	_stdv_header *header = (_stdv_header*) malloc(sizeof(_stdv_header) + cap * membsz);
@@ -96,7 +98,7 @@ static void *_stdv_create (const size_t membsz, const size_t initcap)
 	return ((void*) (header + 1));
 }
 
-static void *_stdv_grow (void *vec, const size_t membsz, const size_t growth_factor)
+_STDV_MAY_BE_UNUSED static void *_stdv_grow (void *vec, const size_t membsz, const size_t growth_factor)
 {
 	if (vec == NULL)
 	{
@@ -109,13 +111,12 @@ static void *_stdv_grow (void *vec, const size_t membsz, const size_t growth_fac
 	return vec;
 }
 
-static void *_stdv_may_grow (void *vec, const size_t membsz)
+_STDV_MAY_BE_UNUSED static void *_stdv_may_grow (void *vec, const size_t membsz)
 {
 	if (vec == NULL)
 	{
 		return _stdv_create(membsz, STDV_STD_INIT_CAP);
 	}
-
 	_stdv_header *header = _STDV_GET_HEADER(vec);
 	if (header->len < header->cap)
 	{
@@ -124,7 +125,7 @@ static void *_stdv_may_grow (void *vec, const size_t membsz)
 	return _stdv_grow(vec, membsz, _STDV_GROWTH_FACTOR);
 }
 
-static bool _stdv_free_element (void **address)
+_STDV_MAY_BE_UNUSED static bool _stdv_free_element (void **address)
 {
 	if (*address == NULL)
 	{
@@ -136,7 +137,7 @@ static bool _stdv_free_element (void **address)
 	return true;
 }
 
-static void *_stdv_try_reserve (void *vec, size_t membsz, size_t newcap)
+_STDV_MAY_BE_UNUSED static void *_stdv_try_reserve (void *vec, size_t membsz, size_t newcap)
 {
 	_stdv_header *header = _STDV_GET_HEADER(vec);
 	if (newcap < header->cap)
@@ -148,7 +149,7 @@ static void *_stdv_try_reserve (void *vec, size_t membsz, size_t newcap)
 	return _stdv_grow(vec, membsz, 1);
 }
 
-static void *_stdv_shrink (void *vec, size_t membsz)
+_STDV_MAY_BE_UNUSED static void *_stdv_shrink (void *vec, size_t membsz)
 {
 	if (vec == NULL)
 	{
