@@ -1,5 +1,5 @@
 
-	stdv: a simple yet usable implementation of a vector<T> in and for C
+	stdv: generic, type-safe dynamic array in C
 API:
 	* STDV_STD_INIT_CAP: it works a suggestion to create a vector with an initial capacity
 	of 64. This macro can be ignored if the user-api needs an exact or greater capacity
