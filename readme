@@ -1,7 +1,7 @@
 
 	stdv: generic, type-safe dynamic array in C
 
-API:
+api:
 	* STDV_STD_INIT_CAP: it works a suggestion to create a vector with an initial capacity
 	of 64. This macro can be ignored if the user-api needs an exact or greater capacity
 	then 64
@@ -102,6 +102,4 @@ API:
 	* stdv_free(vector): frees the vector if it exists and then set `vector` to null. `vector` cannot be a literal
 	`NULL` since it would produce a 'NULL = NULL'
 
-AUTHOR
-	Juan Diego PM (h0p3so)
 
